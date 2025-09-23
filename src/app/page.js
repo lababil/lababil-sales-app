@@ -4,20 +4,20 @@ import { ShoppingCart, Package, TrendingUp, Users, Plus, Edit, Trash2, Search, D
 import UserManagement from '../components/UserManagement';
 import SettingsComponent from '../components/Settings';
 import { formatCurrency, formatDate, downloadReceiptPDF, printReceiptPDF } from '../lib/printUtils';
-import { USER_ROLES, hasPermission, PERMISSIONS, DEFAULT_USERS, COMPANY_INFO, UI_THEME } from '../lib/constants';
+import { USER_ROLES, hasPermission, PERMISSIONS, DEFAULT_USERS, COMPANY_INFO, UI_THEME, applyTheme } from '../lib/constants';
 import LababilLogo from '../components/LababilLogo';
 
-// Initial data untuk demo
+// Initial data untuk demo - UPDATED: Added purchase price and supplier
 const initialProducts = [
-  { id: '1', name: 'Website Development', category: 'Digital Service', price: 5000000, stock: 5 },
-  { id: '2', name: 'Mobile App Development', category: 'Digital Service', price: 8000000, stock: 3 },
-  { id: '3', name: 'Digital Marketing', category: 'Marketing', price: 2000000, stock: 10 },
-  { id: '4', name: 'SEO Optimization', category: 'Marketing', price: 1500000, stock: 8 }
+  { id: '1', name: 'Website Development', category: 'Digital Service', price: 5000000, purchasePrice: 3500000, supplier: 'PT. Digital Solutions', stock: 5 },
+  { id: '2', name: 'Mobile App Development', category: 'Digital Service', price: 8000000, purchasePrice: 5500000, supplier: 'PT. Digital Solutions', stock: 3 },
+  { id: '3', name: 'Digital Marketing', category: 'Marketing', price: 2000000, purchasePrice: 1200000, supplier: 'CV. Marketing Pro', stock: 10 },
+  { id: '4', name: 'SEO Optimization', category: 'Marketing', price: 1500000, purchasePrice: 900000, supplier: 'CV. Marketing Pro', stock: 8 }
 ];
 
 const initialSales = [
   {
-    id: '1',
+    id: '0001/LS/15012024',
     productId: '1',
     productName: 'Website Development',
     customer: 'PT. Teknologi Maju',
@@ -30,7 +30,7 @@ const initialSales = [
     paymentMethod: 'Bank Transfer'
   },
   {
-    id: '2',
+    id: '0002/LS/14012024',
     productId: '2',
     productName: 'Mobile App Development',
     customer: 'CV. Digital Solusi',
@@ -45,13 +45,18 @@ const initialSales = [
 ];
 
 // Receipt Modal Component
-const ReceiptModal = ({ isOpen, onClose, sale, companyInfo = COMPANY_INFO }) => {
+const ReceiptModal = ({ isOpen, onClose, sale, allSales = [], companyInfo = COMPANY_INFO }) => {
   if (!isOpen || !sale) return null;
 
-  const handlePrintPDF = () => printReceiptPDF(sale, companyInfo);
-  const handleDownloadPDF = () => downloadReceiptPDF(sale, companyInfo);
-  const totalWithTax = sale.total * 1.11;
-  const tax = sale.total * 0.11;
+  // Get all sales with the same receipt number (for multi-product sales)
+  const receiptNumber = sale.receiptNumber || sale.id.split('-')[0];
+  const relatedSales = allSales.filter(s => (s.receiptNumber || s.id.split('-')[0]) === receiptNumber);
+  const totalAmount = relatedSales.reduce((sum, s) => sum + s.total, 0);
+  const totalWithTax = totalAmount * 1.11;
+  const tax = totalAmount * 0.11;
+
+  const handlePrintPDF = () => printReceiptPDF(sale, companyInfo, allSales);
+  const handleDownloadPDF = () => downloadReceiptPDF(sale, companyInfo, allSales);
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -144,19 +149,21 @@ const ReceiptModal = ({ isOpen, onClose, sale, companyInfo = COMPANY_INFO }) => 
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-b bg-white hover:bg-gray-50">
-                  <td className="px-6 py-4 text-center font-medium">1</td>
-                  <td className="px-6 py-4">
-                    <div className="font-bold text-gray-900">{sale.productName}</div>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full font-bold">
-                      {sale.quantity}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right font-semibold">{formatCurrency(sale.total / sale.quantity)}</td>
-                  <td className="px-6 py-4 text-right font-bold text-lg">{formatCurrency(sale.total)}</td>
-                </tr>
+                {relatedSales.map((saleItem, index) => (
+                  <tr key={saleItem.id} className="border-b bg-white hover:bg-gray-50">
+                    <td className="px-6 py-4 text-center font-medium">{index + 1}</td>
+                    <td className="px-6 py-4">
+                      <div className="font-bold text-gray-900">{saleItem.productName}</div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full font-bold">
+                        {saleItem.quantity}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right font-semibold">{formatCurrency(saleItem.total / saleItem.quantity)}</td>
+                    <td className="px-6 py-4 text-right font-bold text-lg">{formatCurrency(saleItem.total)}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -165,7 +172,7 @@ const ReceiptModal = ({ isOpen, onClose, sale, companyInfo = COMPANY_INFO }) => 
             <div className="space-y-3">
               <div className="flex justify-between text-lg">
                 <span className="font-semibold">Subtotal:</span>
-                <span className="font-bold">{formatCurrency(sale.total)}</span>
+                <span className="font-bold">{formatCurrency(totalAmount)}</span>
               </div>
               <div className="flex justify-between text-lg">
                 <span className="font-semibold">Tax (11%):</span>
@@ -309,7 +316,7 @@ const LoginPage = ({ onLogin }) => {
                     type="text"
                     value={formData.username}
                     onChange={(e) => setFormData({...formData, username: e.target.value})}
-                    className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white text-gray-900 placeholder-gray-500 shadow-sm"
+                    className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 shadow-sm"
                     placeholder="Enter your username"
                   />
                 </div>
@@ -325,7 +332,7 @@ const LoginPage = ({ onLogin }) => {
                     type={showPassword ? 'text' : 'password'}
                     value={formData.password}
                     onChange={(e) => setFormData({...formData, password: e.target.value})}
-                    className="w-full pl-12 pr-14 py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white text-gray-900 placeholder-gray-500 shadow-sm"
+                    className="w-full pl-12 pr-14 py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 shadow-sm"
                     placeholder="Enter your password"
                   />
                   <button
@@ -383,6 +390,11 @@ export default function LababilSalesApp() {
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [selectedSale, setSelectedSale] = useState(null);
 
+  // Apply theme on component mount
+  useEffect(() => {
+    applyTheme();
+  }, []);
+
   // Authentication
   const handleLogin = (userData) => {
     setUser(userData);
@@ -415,6 +427,8 @@ export default function LababilSalesApp() {
             name: formData.name,
             category: formData.category,
             price: parseFloat(formData.price),
+            purchasePrice: parseFloat(formData.purchasePrice),
+            supplier: formData.supplier,
             stock: parseInt(formData.stock)
           };
           setProducts(products.map(p => p.id === editingItem.id ? updatedProduct : p));
@@ -424,37 +438,66 @@ export default function LababilSalesApp() {
             name: formData.name,
             category: formData.category,
             price: parseFloat(formData.price),
+            purchasePrice: parseFloat(formData.purchasePrice),
+            supplier: formData.supplier,
             stock: parseInt(formData.stock)
           };
           setProducts([...products, newProduct]);
         }
       } else if (modalType === 'sale') {
-        const product = products.find(p => p.id === formData.productId);
-        if (!product) {
-          throw new Error('Product not found');
+        const saleProducts = formData.products || [];
+        if (saleProducts.length === 0) {
+          throw new Error('Please add at least one product');
         }
 
-        const newSale = {
-          id: Date.now().toString(),
-          productId: product.id,
-          productName: product.name,
-          quantity: parseInt(formData.quantity),
-          total: product.price * parseInt(formData.quantity),
-          date: new Date().toISOString().split('T')[0],
-          customer: formData.customer,
-          customerEmail: formData.customerEmail || '',
-          customerPhone: formData.customerPhone || '',
-          status: 'Completed',
-          paymentMethod: 'Bank Transfer'
-        };
+        // Import generateReceiptNumber function
+        const { generateReceiptNumber } = await import('../lib/constants');
 
-        setSales([newSale, ...sales]);
+        const receiptNumber = generateReceiptNumber();
+        let totalAmount = 0;
+        const newSales = [];
 
-        const updatedProduct = {
-          ...product,
-          stock: product.stock - parseInt(formData.quantity)
-        };
-        setProducts(products.map(p => p.id === product.id ? updatedProduct : p));
+        // Create individual sales for each product
+        for (const productItem of saleProducts) {
+          const product = products.find(p => p.id === productItem.productId);
+          if (!product) {
+            throw new Error(`Product not found: ${productItem.productId}`);
+          }
+
+          if (product.stock < productItem.quantity) {
+            throw new Error(`Insufficient stock for ${product.name}. Available: ${product.stock}, Requested: ${productItem.quantity}`);
+          }
+
+          const saleTotal = product.price * productItem.quantity;
+          totalAmount += saleTotal;
+
+          const newSale = {
+            id: `${receiptNumber}-${productItem.id}`,
+            productId: product.id,
+            productName: product.name,
+            quantity: productItem.quantity,
+            total: saleTotal,
+            date: new Date().toISOString().split('T')[0],
+            customer: formData.customer,
+            customerEmail: formData.customerEmail || '',
+            customerPhone: formData.customerPhone || '',
+            status: 'Completed',
+            paymentMethod: 'Bank Transfer',
+            receiptNumber: receiptNumber // Link to main receipt
+          };
+
+          newSales.push(newSale);
+
+          // Update product stock
+          const updatedProduct = {
+            ...product,
+            stock: product.stock - productItem.quantity
+          };
+          setProducts(products.map(p => p.id === product.id ? updatedProduct : p));
+        }
+
+        // Add all sales to the sales list
+        setSales([...newSales, ...sales]);
       }
 
       setShowModal(false);
@@ -778,7 +821,7 @@ export default function LababilSalesApp() {
                       placeholder="Search products..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                     />
                   </div>
                 </div>
@@ -790,7 +833,9 @@ export default function LababilSalesApp() {
                     <tr>
                       <th className="px-6 py-4 text-left font-bold">Product Name</th>
                       <th className="px-6 py-4 text-left font-bold">Category</th>
-                      <th className="px-6 py-4 text-right font-bold">Price</th>
+                      <th className="px-6 py-4 text-right font-bold">Selling Price</th>
+                      <th className="px-6 py-4 text-right font-bold">Purchase Price</th>
+                      <th className="px-6 py-4 text-left font-bold">Supplier</th>
                       <th className="px-6 py-4 text-center font-bold">Stock</th>
                       <th className="px-6 py-4 text-center font-bold">Actions</th>
                     </tr>
@@ -805,6 +850,8 @@ export default function LababilSalesApp() {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right font-bold text-gray-900">{formatCurrency(product.price)}</td>
+                        <td className="px-6 py-4 text-right font-bold text-gray-600">{formatCurrency(product.purchasePrice)}</td>
+                        <td className="px-6 py-4 text-gray-700 font-medium">{product.supplier}</td>
                         <td className="px-6 py-4 text-center">
                           <span className={`px-3 py-1 rounded-full text-sm font-bold ${
                             product.stock > 10 ? 'bg-green-100 text-green-800' :
@@ -872,7 +919,7 @@ export default function LababilSalesApp() {
                       placeholder="Search sales..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                     />
                   </div>
                 </div>
@@ -976,7 +1023,7 @@ export default function LababilSalesApp() {
                           type="text"
                           value={formData.name || ''}
                           onChange={(e) => setFormData({...formData, name: e.target.value})}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                           placeholder="Enter product name"
                           required
                         />
@@ -987,7 +1034,7 @@ export default function LababilSalesApp() {
                         <select
                           value={formData.category || ''}
                           onChange={(e) => setFormData({...formData, category: e.target.value})}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                           required
                         >
                           <option value="">Select category</option>
@@ -1000,12 +1047,12 @@ export default function LababilSalesApp() {
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-3">Price</label>
+                          <label className="block text-sm font-semibold text-gray-700 mb-3">Selling Price</label>
                           <input
                             type="number"
                             value={formData.price || ''}
                             onChange={(e) => setFormData({...formData, price: e.target.value})}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                             placeholder="0"
                             min="0"
                             step="0.01"
@@ -1014,58 +1061,54 @@ export default function LababilSalesApp() {
                         </div>
 
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-3">Stock</label>
+                          <label className="block text-sm font-semibold text-gray-700 mb-3">Purchase Price</label>
                           <input
                             type="number"
-                            value={formData.stock || ''}
-                            onChange={(e) => setFormData({...formData, stock: e.target.value})}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                            value={formData.purchasePrice || ''}
+                            onChange={(e) => setFormData({...formData, purchasePrice: e.target.value})}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                             placeholder="0"
                             min="0"
+                            step="0.01"
                             required
                           />
                         </div>
                       </div>
-                    </>
-                  ) : (
-                    <>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-3">Product</label>
-                        <select
-                          value={formData.productId || ''}
-                          onChange={(e) => setFormData({...formData, productId: e.target.value})}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                          required
-                        >
-                          <option value="">Select product</option>
-                          {products.map(product => (
-                            <option key={product.id} value={product.id}>
-                              {product.name} - {formatCurrency(product.price)} (Stock: {product.stock})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
 
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-3">Quantity</label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-3">Supplier</label>
                         <input
-                          type="number"
-                          value={formData.quantity || ''}
-                          onChange={(e) => setFormData({...formData, quantity: e.target.value})}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                          placeholder="1"
-                          min="1"
+                          type="text"
+                          value={formData.supplier || ''}
+                          onChange={(e) => setFormData({...formData, supplier: e.target.value})}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                          placeholder="Enter supplier name"
                           required
                         />
                       </div>
 
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-3">Stock</label>
+                        <input
+                          type="number"
+                          value={formData.stock || ''}
+                          onChange={(e) => setFormData({...formData, stock: e.target.value})}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                          placeholder="0"
+                          min="0"
+                          required
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-3">Customer Name</label>
                         <input
                           type="text"
                           value={formData.customer || ''}
                           onChange={(e) => setFormData({...formData, customer: e.target.value})}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                           placeholder="Enter customer name"
                           required
                         />
@@ -1078,7 +1121,7 @@ export default function LababilSalesApp() {
                             type="email"
                             value={formData.customerEmail || ''}
                             onChange={(e) => setFormData({...formData, customerEmail: e.target.value})}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                             placeholder="customer@example.com"
                           />
                         </div>
@@ -1089,9 +1132,100 @@ export default function LababilSalesApp() {
                             type="tel"
                             value={formData.customerPhone || ''}
                             onChange={(e) => setFormData({...formData, customerPhone: e.target.value})}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                             placeholder="+62 xxx-xxxx-xxxx"
                           />
+                        </div>
+                      </div>
+
+                      {/* Products Section */}
+                      <div className="border-t pt-6">
+                        <div className="flex justify-between items-center mb-4">
+                          <h3 className="text-lg font-semibold text-gray-900">Products</h3>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newProduct = { productId: '', quantity: 1, id: Date.now() };
+                              const currentProducts = formData.products || [];
+                              setFormData({...formData, products: [...currentProducts, newProduct]});
+                            }}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center text-sm font-semibold"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Product
+                          </button>
+                        </div>
+
+                        <div className="space-y-4">
+                          {(formData.products || []).map((productItem, index) => (
+                            <div key={productItem.id} className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                              <div className="flex justify-between items-start mb-3">
+                                <h4 className="font-medium text-gray-900">Product {index + 1}</h4>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const currentProducts = formData.products || [];
+                                    const updatedProducts = currentProducts.filter((_, i) => i !== index);
+                                    setFormData({...formData, products: updatedProducts});
+                                  }}
+                                  className="text-red-600 hover:text-red-800 p-1"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-sm font-semibold text-gray-700 mb-2">Product</label>
+                                  <select
+                                    value={productItem.productId}
+                                    onChange={(e) => {
+                                      const currentProducts = formData.products || [];
+                                      const updatedProducts = currentProducts.map((p, i) =>
+                                        i === index ? {...p, productId: e.target.value} : p
+                                      );
+                                      setFormData({...formData, products: updatedProducts});
+                                    }}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    required
+                                  >
+                                    <option value="">Select product</option>
+                                    {products.map(product => (
+                                      <option key={product.id} value={product.id}>
+                                        {product.name} - {formatCurrency(product.price)} (Stock: {product.stock})
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <label className="block text-sm font-semibold text-gray-700 mb-2">Quantity</label>
+                                  <input
+                                    type="number"
+                                    value={productItem.quantity}
+                                    onChange={(e) => {
+                                      const currentProducts = formData.products || [];
+                                      const updatedProducts = currentProducts.map((p, i) =>
+                                        i === index ? {...p, quantity: parseInt(e.target.value) || 1} : p
+                                      );
+                                      setFormData({...formData, products: updatedProducts});
+                                    }}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="0"
+                                    min="1"
+                                    required
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+
+                          {(!formData.products || formData.products.length === 0) && (
+                            <div className="text-center py-8 text-gray-500">
+                              <Package className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                              <p>No products added yet. Click "Add Product" to get started.</p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </>
@@ -1124,6 +1258,7 @@ export default function LababilSalesApp() {
           isOpen={showReceiptModal}
           onClose={() => setShowReceiptModal(false)}
           sale={selectedSale}
+          allSales={sales}
         />
       </div>
     </div>
