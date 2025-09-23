@@ -31,6 +31,13 @@ export const PERMISSIONS = {
   DOWNLOAD_RECEIPT: 'download_receipt',
 };
 
+// Receipt number format
+export const RECEIPT_FORMAT = {
+  PREFIX: 'LS',
+  SEPARATOR: '/',
+  DATE_FORMAT: 'DDMMYYYY'
+};
+
 // Role-based permissions mapping
 export const ROLE_PERMISSIONS = {
   [USER_ROLES.ADMIN]: [
@@ -139,4 +146,95 @@ export const UI_THEME = {
     card: 'bg-gradient-to-br from-white to-blue-50',
     header: 'bg-gradient-to-r from-blue-50 via-white to-blue-50'
   }
+};
+
+// NEW: Dark Theme Colors
+export const DARK_THEME = {
+  colors: {
+    primary: {
+      50: '#1e293b',
+      100: '#334155',
+      200: '#475569',
+      300: '#64748b',
+      400: '#94a3b8',
+      500: '#cbd5e1',
+      600: '#e2e8f0',
+      700: '#f1f5f9',
+      800: '#f8fafc',
+      900: '#ffffff'
+    },
+    background: {
+      50: '#0f172a',
+      100: '#1e293b',
+      200: '#334155',
+      300: '#475569'
+    },
+    card: {
+      background: '#1e293b',
+      border: '#334155'
+    }
+  }
+};
+
+// Theme context and utilities
+export const THEMES = {
+  LIGHT: 'light',
+  DARK: 'dark'
+};
+
+// Helper function to get current theme
+export const getCurrentTheme = () => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('lababil_theme') || THEMES.LIGHT;
+  }
+  return THEMES.LIGHT;
+};
+
+// Helper function to toggle theme
+export const toggleTheme = () => {
+  const currentTheme = getCurrentTheme();
+  const newTheme = currentTheme === THEMES.LIGHT ? THEMES.DARK : THEMES.LIGHT;
+  localStorage.setItem('lababil_theme', newTheme);
+
+  // Apply theme to document
+  if (typeof document !== 'undefined') {
+    if (newTheme === THEMES.DARK) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }
+
+  return newTheme;
+};
+
+// Helper function to apply theme on page load
+export const applyTheme = () => {
+  if (typeof document !== 'undefined') {
+    const currentTheme = getCurrentTheme();
+    if (currentTheme === THEMES.DARK) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }
+};
+
+// Helper function to generate receipt number
+export const generateReceiptNumber = () => {
+  const now = new Date();
+  const dateStr = now.getDate().toString().padStart(2, '0') +
+                  (now.getMonth() + 1).toString().padStart(2, '0') +
+                  now.getFullYear().toString();
+
+  // Get last receipt number for today from localStorage
+  const lastReceiptKey = `last_receipt_${dateStr}`;
+  const lastReceiptNum = parseInt(localStorage.getItem(lastReceiptKey) || '0') + 1;
+
+  // Save new receipt number
+  localStorage.setItem(lastReceiptKey, lastReceiptNum.toString());
+
+  // Format: 0001/LS/22092025
+  const receiptNum = lastReceiptNum.toString().padStart(4, '0');
+  return `${receiptNum}${RECEIPT_FORMAT.SEPARATOR}${RECEIPT_FORMAT.PREFIX}${RECEIPT_FORMAT.SEPARATOR}${dateStr}`;
 };
