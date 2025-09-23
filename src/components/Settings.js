@@ -1,7 +1,7 @@
 'use client'
 import React, { useState, useEffect } from 'react';
 import { Settings, Printer, Building, Upload, Save, X, FileText, Monitor, Paperclip, Image, CheckCircle, AlertCircle, Users } from 'lucide-react';
-import { COMPANY_INFO } from '../lib/constants';
+import { COMPANY_INFO, THEMES, getCurrentTheme, toggleTheme, DARK_THEME } from '../lib/constants';
 import UserManagement from './UserManagement';
 import LababilLogo from './LababilLogo';
 
@@ -181,11 +181,12 @@ const SettingsComponent = () => {
 
       {/* Settings Navigation */}
       <div className="bg-white rounded-xl shadow-lg p-1">
-        <div className="flex space-x-1">
+        <div className="flex space-x-1 overflow-x-auto">
           {[
             { id: 'company', label: 'Company Info', icon: Building },
             { id: 'printer', label: 'Printer Settings', icon: Printer },
             { id: 'receipt', label: 'Receipt Settings', icon: FileText },
+            { id: 'theme', label: 'Theme', icon: Monitor },
             { id: 'users', label: 'User Management', icon: Users }
           ].map(section => {
             const Icon = section.icon;
@@ -193,7 +194,7 @@ const SettingsComponent = () => {
               <button
                 key={section.id}
                 onClick={() => setActiveSection(section.id)}
-                className={`flex items-center px-6 py-3 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                className={`flex items-center px-6 py-3 rounded-lg text-sm font-semibold transition-all duration-200 whitespace-nowrap ${
                   activeSection === section.id
                     ? 'bg-blue-600 text-white shadow-lg'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
@@ -303,8 +304,8 @@ const SettingsComponent = () => {
             </h4>
 
             <div className="flex items-center space-x-6">
-              <div className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50">
-                {/* ✅ SVG Logo Preview - Scalable and crisp */}
+              <div className="w-24 h-24 flex items-center justify-center bg-gray-50 rounded-lg">
+                {/* ✅ SVG Logo Preview - Clean, no border, scalable and crisp */}
                 <LababilLogo size={64} variant="default" />
               </div>
 
@@ -563,6 +564,75 @@ const SettingsComponent = () => {
                     ))}
                   </select>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Theme Settings Section */}
+      {activeSection === 'theme' && (
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center">
+            <Monitor className="h-5 w-5 mr-2 text-blue-600" />
+            Theme Settings
+          </h3>
+
+          <div className="space-y-6">
+            <div>
+              <h4 className="text-md font-semibold text-gray-900 mb-4">Appearance</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors cursor-pointer">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center">
+                      <div className="w-4 h-4 bg-blue-600 rounded-full mr-3"></div>
+                      <span className="font-medium text-gray-900">Light Theme</span>
+                    </div>
+                    <input
+                      type="radio"
+                      name="theme"
+                      value="light"
+                      checked={getCurrentTheme() === 'light'}
+                      onChange={() => toggleTheme()}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                    />
+                  </div>
+                  <p className="text-sm text-gray-600">Clean and bright interface</p>
+                </div>
+
+                <div className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors cursor-pointer">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center">
+                      <div className="w-4 h-4 bg-gray-800 rounded-full mr-3"></div>
+                      <span className="font-medium text-gray-900">Dark Theme</span>
+                    </div>
+                    <input
+                      type="radio"
+                      name="theme"
+                      value="dark"
+                      checked={getCurrentTheme() === 'dark'}
+                      onChange={() => toggleTheme()}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                    />
+                  </div>
+                  <p className="text-sm text-gray-600">Easy on the eyes, perfect for low-light environments</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-6 border-t border-gray-200">
+              <h4 className="text-md font-semibold text-gray-900 mb-4">Theme Preview</h4>
+              <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border">
+                <div className="text-sm text-gray-600 dark:text-gray-300 mb-2">Current theme: {getCurrentTheme()}</div>
+                <div className="flex space-x-2">
+                  <div className="w-8 h-8 bg-blue-600 rounded"></div>
+                  <div className="w-8 h-8 bg-purple-600 rounded"></div>
+                  <div className="w-8 h-8 bg-green-600 rounded"></div>
+                  <div className="w-8 h-8 bg-yellow-600 rounded"></div>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  Theme changes will be applied immediately and saved to your preferences.
+                </p>
               </div>
             </div>
           </div>
