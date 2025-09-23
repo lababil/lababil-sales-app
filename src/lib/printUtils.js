@@ -414,10 +414,10 @@ export const downloadReceiptHTML = async (sale, companyInfo, allSales = []) => {
 const generateReceiptHTML = (sale, companyInfo = {}, allSales = []) => {
   const {
     companyName = 'Lababil Solution',
-    address = 'Jakarta, Indonesia',
-    phone = '+62 21-1234-5678',
-    email = 'info@lababilsolution.com',
-    website = 'www.lababilsolution.com',
+    address = 'Jambi, Indonesia',
+    phone = '082312235675',
+    email = 'lababil2307@gmail.com',
+    website = 'www.lababilsolution.biz.id',
     bankAccount = 'BCA 7870598488 a/n A KHOLID'
   } = companyInfo;
 
