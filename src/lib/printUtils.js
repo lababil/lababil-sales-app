@@ -262,7 +262,7 @@ export const generateReceiptPDF = (sale, companyInfo = COMPANY_INFO, allSales = 
   doc.text('No', margin + 5, yPosition);
   doc.text('Description', margin + 20, yPosition);
   doc.text('Qty', pageWidth - 85, yPosition);
-  doc.text('Unit Price', pageWidth - 35, yPosition);
+  doc.text('Unit Price', pageWidth - 0, yPosition);
   doc.text('Total', pageWidth - 25, yPosition, { align: 'right' });
 
   // Items
@@ -286,7 +286,7 @@ export const generateReceiptPDF = (sale, companyInfo = COMPANY_INFO, allSales = 
     }
 
     doc.text(saleItem.quantity.toString(), pageWidth - 85, yPosition);
-    doc.text(formatCurrency(saleItem.total / saleItem.quantity), pageWidth - 35, yPosition);
+    doc.text(formatCurrency(saleItem.total / saleItem.quantity), pageWidth - 0, yPosition);
     doc.text(formatCurrency(saleItem.total), pageWidth - 25, yPosition, { align: 'right' });
 
     yPosition += 15;
@@ -414,10 +414,10 @@ export const downloadReceiptHTML = async (sale, companyInfo, allSales = []) => {
 const generateReceiptHTML = (sale, companyInfo = {}, allSales = []) => {
   const {
     companyName = 'Lababil Solution',
-    address = 'Jambi, Indonesia',
-    phone = '082312235675',
-    email = 'lababil2307@gmail.com',
-    website = 'www.lababilsolution.biz.id',
+    address = 'Jakarta, Indonesia',
+    phone = '+62 21-1234-5678',
+    email = 'info@lababilsolution.com',
+    website = 'www.lababilsolution.com',
     bankAccount = 'BCA 7870598488 a/n A KHOLID'
   } = companyInfo;
 
