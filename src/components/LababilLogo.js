@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { COMPANY_INFO } from '../lib/constants';
 
 export default function LababilLogo({
   size = 24,
@@ -6,6 +7,9 @@ export default function LababilLogo({
   showText = false,
   variant = "default" // "default", "gradient", "white"
 }) {
+  const [imageError, setImageError] = useState(false);
+  const [fallbackError, setFallbackError] = useState(false);
+
   const logoColors = {
     default: "text-blue-600",
     gradient: "text-white",
@@ -14,21 +18,53 @@ export default function LababilLogo({
 
   const colorClass = logoColors[variant] || logoColors.default;
 
+  // Use logo from constants, fallback to PNG if SVG fails
+  const logoSrc = imageError ? '/logo.png' : COMPANY_INFO.logo;
+
+  const handleImageError = () => {
+    if (!imageError) {
+      setImageError(true);
+    } else {
+      setFallbackError(true);
+    }
+  };
+
   return (
     <div className={`flex items-center ${className}`}>
-      {/* New Logo Image - Clean, no border/frame */}
+      {/* Logo Image - Clean, no border/frame */}
       <div
-        className="flex-shrink-0"
+        className="flex-shrink-0 overflow-hidden"
         style={{
           width: size,
           height: size * 0.75,
-          backgroundImage: `url("/logo.png")`,
-          backgroundSize: 'contain',
-          backgroundRepeat: 'no-repeat',
-          backgroundPosition: 'center',
-          filter: variant === 'white' ? 'brightness(0) invert(1)' : 'none'
+          backgroundColor: 'transparent', // Remove any background color
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
         }}
-      />
+      >
+        {!fallbackError ? (
+          <img
+            src={logoSrc}
+            alt="Lababil Solution Logo"
+            onError={handleImageError}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              display: 'block',
+              filter: variant === 'white' ? 'brightness(0) invert(1)' : 'none'
+            }}
+            className="drop-shadow-none" // Remove any drop shadow
+          />
+        ) : (
+          // Fallback text logo if both images fail
+          <div className={`text-center ${colorClass}`}>
+            <div className="font-bold text-lg leading-tight">LABABIL</div>
+            <div className="text-sm leading-tight opacity-80">solution</div>
+          </div>
+        )}
+      </div>
 
       {/* Text Logo */}
       {showText && (
@@ -52,7 +88,7 @@ export function LababilWatermark({ opacity = 0.05, size = 200 }) {
       style={{
         width: size,
         height: size * 0.75,
-        backgroundImage: `url("/logo.png")`,
+        backgroundImage: `url("${COMPANY_INFO.logo}")`,
         backgroundSize: 'contain',
         backgroundRepeat: 'no-repeat',
         backgroundPosition: 'center',

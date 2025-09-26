@@ -1,7 +1,8 @@
 'use client'
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Edit, Trash2, Search, Eye, EyeOff, Save, X, Shield, UserCheck } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Search, Eye, EyeOff, Save, X, Shield, UserCheck, AlertTriangle } from 'lucide-react';
 import { USER_ROLES, DEFAULT_USERS } from '../lib/constants';
+import { hashPassword, verifyPassword, validatePasswordStrength, validateEmail, validatePhone, sanitizeInput } from '../lib/security';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -51,14 +52,37 @@ const UserManagement = () => {
     setError('');
 
     try {
+      // Sanitize inputs
+      const sanitizedData = {
+        username: sanitizeInput(formData.username.trim()),
+        password: formData.password,
+        name: sanitizeInput(formData.name.trim()),
+        email: sanitizeInput(formData.email.trim()),
+        role: formData.role,
+        isActive: formData.isActive
+      };
+
       // Validation
-      if (!formData.username || !formData.password || !formData.name) {
+      if (!sanitizedData.username || !sanitizedData.password || !sanitizedData.name) {
         throw new Error('Username, password, and name are required');
+      }
+
+      // Validate email if provided
+      if (sanitizedData.email && !validateEmail(sanitizedData.email)) {
+        throw new Error('Please enter a valid email address');
+      }
+
+      // Validate password strength for new users
+      if (!editingUser) {
+        const passwordValidation = validatePasswordStrength(sanitizedData.password);
+        if (!passwordValidation.isValid) {
+          throw new Error(passwordValidation.errors.join('. '));
+        }
       }
 
       // Check if username already exists (except for current user being edited)
       const existingUser = users.find(u =>
-        u.username === formData.username && (!editingUser || u.id !== editingUser.id)
+        u.username === sanitizedData.username && (!editingUser || u.id !== editingUser.id)
       );
 
       if (existingUser) {
@@ -68,21 +92,30 @@ const UserManagement = () => {
       let updatedUsers;
 
       if (editingUser) {
+        // For existing users, only hash password if it's being changed
+        let hashedPassword = editingUser.password;
+        if (sanitizedData.password !== editingUser.password) {
+          hashedPassword = await hashPassword(sanitizedData.password);
+        }
+
         // Update existing user
         updatedUsers = users.map(user =>
           user.id === editingUser.id
             ? {
                 ...user,
-                ...formData,
+                ...sanitizedData,
+                password: hashedPassword,
                 updatedAt: new Date().toISOString().split('T')[0]
               }
             : user
         );
       } else {
-        // Create new user
+        // Create new user with hashed password
+        const hashedPassword = await hashPassword(sanitizedData.password);
         const newUser = {
           id: Date.now().toString(),
-          ...formData,
+          ...sanitizedData,
+          password: hashedPassword,
           createdAt: new Date().toISOString().split('T')[0],
           updatedAt: new Date().toISOString().split('T')[0]
         };
