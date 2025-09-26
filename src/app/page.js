@@ -1,6 +1,6 @@
 'use client'
-import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Package, TrendingUp, Users, Plus, Edit, Trash2, Search, DollarSign, Calendar, BarChart3, Printer, Download, FileText, AlertCircle, Eye, EyeOff, Lock, User, X, Settings, LogOut, Shield, UserCheck } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { ShoppingCart, Package, TrendingUp, Users, Plus, Edit, Trash2, Search, DollarSign, Calendar, BarChart3, Printer, Download, FileText, AlertCircle, Eye, EyeOff, Lock, User, X, Settings, LogOut, Shield, UserCheck, ChevronDown } from 'lucide-react';
 import UserManagement from '../components/UserManagement';
 import SettingsComponent from '../components/Settings';
 import { formatCurrency, formatDate, downloadReceiptPDF, printReceiptPDF } from '../lib/printUtils';
@@ -75,9 +75,9 @@ const ReceiptModal = ({ isOpen, onClose, sale, allSales = [], companyInfo = COMP
 
         <div className="p-8">
           <div className="text-center mb-8 pb-8 border-b-2 border-gradient-to-r from-blue-600 to-purple-600">
-            <div className="w-24 h-20 mx-auto mb-6 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 rounded-2xl flex items-center justify-center shadow-lg">
-              {/* ✅ UPDATED: Using SVG Logo Component */}
-              <LababilLogo size={48} variant="white" />
+            <div className="w-24 h-20 mx-auto mb-6 flex items-center justify-center">
+              {/* ✅ UPDATED: Using SVG Logo Component - Original colors, larger size */}
+              <LababilLogo size={56} variant="default" />
             </div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
               {companyInfo.companyName}
@@ -241,28 +241,34 @@ const LoginPage = ({ onLogin }) => {
     setLoading(true);
     setError('');
 
-    // Get users from localStorage or use defaults
-    const savedUsers = localStorage.getItem('lababil_users');
-    const users = savedUsers ? JSON.parse(savedUsers) : DEFAULT_USERS;
-
-    const user = users.find(u => u.username === formData.username && u.isActive);
-
-    if (!user || user.password !== formData.password) {
-      setError('Invalid username or password, or account is inactive');
-      setLoading(false);
-      return;
-    }
-
-    setTimeout(() => {
-      onLogin({
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        name: user.name,
-        email: user.email
+    try {
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: formData.username,
+          password: formData.password,
+        }),
       });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || 'Login failed');
+        setLoading(false);
+        return;
+      }
+
+      // Login successful
+      onLogin(data.user);
       setLoading(false);
-    }, 1000);
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('An error occurred during login. Please try again.');
+      setLoading(false);
+    }
   };
 
 
@@ -282,10 +288,8 @@ const LoginPage = ({ onLogin }) => {
             <div className="absolute inset-0 bg-gradient-to-r from-blue-600/90 via-purple-600/90 to-blue-700/90"></div>
             <div className="relative">
               <div className="flex justify-center mb-6">
-                <div className="bg-white/20 backdrop-blur-lg p-4 rounded-2xl border border-white/30 shadow-lg">
-                  {/* ✅ UPDATED: Using SVG Logo Component */}
-                  <LababilLogo size={48} variant="white" />
-                </div>
+                {/* ✅ UPDATED: Using SVG Logo Component - Original colors, larger size */}
+                <LababilLogo size={56} variant="default" />
               </div>
               <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Lababil Solution</h1>
               <p className="text-blue-100 text-sm font-medium">Digital Sales System v2.0</p>
@@ -389,6 +393,56 @@ export default function LababilSalesApp() {
   const [error, setError] = useState(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [selectedSale, setSelectedSale] = useState(null);
+  const [expandedTransactions, setExpandedTransactions] = useState(new Set());
+
+  // Filtered data (moved before early return to avoid conditional hooks)
+  const filteredProducts = products.filter(product =>
+    product.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredSales = sales.filter(sale =>
+    sale.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    sale.customer.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Group filtered sales by transaction
+  const groupedFilteredSales = useMemo(() => {
+    const groups = filteredSales.reduce((acc, sale) => {
+      const receiptNumber = sale.receiptNumber || sale.id.split('/')[0];
+      if (!acc[receiptNumber]) {
+        acc[receiptNumber] = {
+          receiptNumber,
+          sales: [],
+          total: 0,
+          customer: sale.customer,
+          date: sale.date,
+          status: sale.status,
+          customerEmail: sale.customerEmail
+        };
+      }
+      acc[receiptNumber].sales.push(sale);
+      acc[receiptNumber].total += sale.total;
+      return acc;
+    }, {});
+    return Object.values(groups);
+  }, [filteredSales]);
+
+  const toggleTransaction = (receiptNumber) => {
+    const newExpanded = new Set(expandedTransactions);
+    if (newExpanded.has(receiptNumber)) {
+      newExpanded.delete(receiptNumber);
+    } else {
+      newExpanded.add(receiptNumber);
+    }
+    setExpandedTransactions(newExpanded);
+  };
+
+  const handleDeleteTransaction = (receiptNumber) => {
+    if (!confirm(`Are you sure you want to delete this entire transaction? This will remove all products in it.`)) {
+      return;
+    }
+    setSales(sales.filter(s => s.receiptNumber !== receiptNumber));
+  };
 
   // Apply theme on component mount
   useEffect(() => {
@@ -582,16 +636,6 @@ export default function LababilSalesApp() {
     setShowModal(true);
   };
 
-  // Filtered data
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const filteredSales = sales.filter(sale =>
-    sale.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    sale.customer.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Error message */}
@@ -609,10 +653,8 @@ export default function LababilSalesApp() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             <div className="flex items-center">
-              <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 text-white p-3 rounded-2xl mr-4 shadow-lg">
-                {/* ✅ UPDATED: Using SVG Logo Component */}
-                <LababilLogo size={28} variant="white" />
-              </div>
+              {/* ✅ UPDATED: Using SVG Logo Component - Original colors, larger size */}
+              <LababilLogo size={32} variant="default" className="mr-4" />
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                   Lababil Solution
@@ -911,12 +953,12 @@ export default function LababilSalesApp() {
             <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
               <div className="p-6 border-b bg-gradient-to-r from-gray-50 to-blue-50">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-bold text-gray-900">All Sales</h3>
+                  <h3 className="text-lg font-bold text-gray-900">All Transactions</h3>
                   <div className="relative">
                     <Search className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
                       type="text"
-                      placeholder="Search sales..."
+                      placeholder="Search transactions..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
@@ -929,9 +971,9 @@ export default function LababilSalesApp() {
                 <table className="w-full">
                   <thead className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
                     <tr>
-                      <th className="px-6 py-4 text-left font-bold">Product</th>
+                      <th className="px-6 py-4 text-left font-bold">Transaction</th>
                       <th className="px-6 py-4 text-left font-bold">Customer</th>
-                      <th className="px-6 py-4 text-right font-bold">Quantity</th>
+                      <th className="px-6 py-4 text-right font-bold">Items</th>
                       <th className="px-6 py-4 text-right font-bold">Total</th>
                       <th className="px-6 py-4 text-center font-bold">Date</th>
                       <th className="px-6 py-4 text-center font-bold">Status</th>
@@ -939,52 +981,94 @@ export default function LababilSalesApp() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredSales.map((sale, index) => (
-                      <tr key={sale.id} className={`border-b hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                        <td className="px-6 py-4 font-semibold text-gray-900">{sale.productName}</td>
-                        <td className="px-6 py-4">
-                          <div>
-                            <p className="font-medium text-gray-900">{sale.customer}</p>
-                            <p className="text-sm text-gray-600">{sale.customerEmail}</p>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right font-bold text-gray-900">{sale.quantity}</td>
-                        <td className="px-6 py-4 text-right font-bold text-lg text-gray-900">{formatCurrency(sale.total)}</td>
-                        <td className="px-6 py-4 text-center text-gray-600">{formatDate(sale.date)}</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-bold">
-                            {sale.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <div className="flex justify-center space-x-2">
-                            <button
-                              onClick={() => handlePrintWithPreview(sale)}
-                              className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-lg transition-colors"
-                              title="Print with Preview"
-                            >
-                              <Printer className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDownloadReceipt(sale)}
-                              className="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-lg transition-colors"
-                              title="Download PDF"
-                            >
-                              <Download className="h-4 w-4" />
-                            </button>
-                            {hasPermission(user.role, PERMISSIONS.DELETE_SALE) && (
-                              <button
-                                onClick={() => handleDelete('sale', sale.id)}
-                                className="p-2 text-red-600 hover:text-red-800 hover:bg-red-100 rounded-lg transition-colors"
-                                title="Delete Sale"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            )}
-                          </div>
+                    {groupedFilteredSales.map((group, groupIndex) => {
+                      const isExpanded = expandedTransactions.has(group.receiptNumber);
+                      const firstSale = group.sales[0];
+                      const totalItems = group.sales.length;
+
+                      return (
+                        <>
+                          {/* Main Transaction Row */}
+                          <tr 
+                            key={`group-${group.receiptNumber}`} 
+                            className={`border-b hover:bg-gray-50 cursor-pointer transition-colors ${groupIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
+                            onClick={() => toggleTransaction(group.receiptNumber)}
+                          >
+                            <td className="px-6 py-4 font-semibold text-gray-900 flex items-center">
+                              <ChevronDown className={`h-4 w-4 mr-2 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                              <span className="font-bold text-blue-600">#{group.receiptNumber}</span>
+                              <span className="ml-2 text-sm text-gray-500">({totalItems} items)</span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div>
+                                <p className="font-medium text-gray-900">{firstSale.customer}</p>
+                                <p className="text-sm text-gray-600">{firstSale.customerEmail}</p>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-right font-bold text-gray-900">{totalItems}</td>
+                            <td className="px-6 py-4 text-right font-bold text-lg text-gray-900">{formatCurrency(group.total)}</td>
+                            <td className="px-6 py-4 text-center text-gray-600">{formatDate(firstSale.date)}</td>
+                            <td className="px-6 py-4 text-center">
+                              <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-bold">
+                                {firstSale.status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <div className="flex justify-center space-x-2">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handlePrintWithPreview(firstSale); }}
+                                  className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-lg transition-colors"
+                                  title="Print Transaction"
+                                >
+                                  <Printer className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleDownloadReceipt(firstSale); }}
+                                  className="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-lg transition-colors"
+                                  title="Download PDF"
+                                >
+                                  <Download className="h-4 w-4" />
+                                </button>
+                                {hasPermission(user.role, PERMISSIONS.DELETE_SALE) && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleDeleteTransaction(group.receiptNumber); }}
+                                    className="p-2 text-red-600 hover:text-red-800 hover:bg-red-100 rounded-lg transition-colors"
+                                    title="Delete Transaction"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+
+                          {/* Expanded Sub-Rows for Products */}
+                          {isExpanded && group.sales.map((sale, saleIndex) => (
+                            <tr key={sale.id} className="bg-gray-50 border-b hover:bg-gray-100">
+                              <td colSpan="7" className="px-6 py-3">
+                                <div className="flex items-center space-x-4 pl-12 border-l-4 border-blue-200 bg-blue-50 rounded-r-lg">
+                                  <div className="w-8 text-center text-gray-500 font-medium">{saleIndex + 1}.</div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-medium text-gray-900 truncate">{sale.productName}</p>
+                                  </div>
+                                  <div className="text-right w-20 text-sm font-semibold text-gray-700">{sale.quantity}x</div>
+                                  <div className="text-right w-32 text-sm text-gray-600">{formatCurrency(sale.total / sale.quantity)}</div>
+                                  <div className="text-right w-32 font-bold text-gray-900">{formatCurrency(sale.total)}</div>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </>
+                      );
+                    })}
+                    {groupedFilteredSales.length === 0 && (
+                      <tr>
+                        <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
+                          <Package className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                          <p>No transactions found matching your search.</p>
                         </td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>
