@@ -75,25 +75,28 @@ export const hasPermission = (userRole, permission) => {
 };
 
 // Default users - akan dipindah ke database/localStorage nanti
+// Note: Passwords are hashed using bcrypt for security
 export const DEFAULT_USERS = [
   {
     id: '1',
     username: 'admin',
-    password: 'F@ruq2021',
+    password: '$2b$10$B/wz5439YIN/7la04sadBecrMgrbOrB3m6FIGZNZ8r726YGa3lG66', // hashed 'F@ruq2021'
     name: 'Administrator',
     role: USER_ROLES.ADMIN,
     email: 'admin@lababilsolution.com',
     createdAt: '2024-01-01',
+    updatedAt: '2024-01-01',
     isActive: true
   },
   {
     id: '2',
     username: 'kasir',
-    password: 'kasir123',
+    password: '$2b$10$vmu/JWNpvCCSGzoxZrhuJOLpAupyoTMPjasg8tsEB7aKif4tDekKi', // hashed 'kasir123'
     name: 'Cashier',
     role: USER_ROLES.KASIR,
     email: 'kasir@lababilsolution.com',
     createdAt: '2024-01-01',
+    updatedAt: '2024-01-01',
     isActive: true
   }
 ];
