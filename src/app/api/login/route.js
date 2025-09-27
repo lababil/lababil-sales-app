@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { DEFAULT_USERS } from '../../../lib/constants';
-import { verifyPassword } from '../../../lib/security';
 
 export async function POST(request) {
   try {
@@ -25,8 +24,8 @@ export async function POST(request) {
       );
     }
 
-    // Verify password using bcrypt
-    const isValidPassword = await verifyPassword(password, user.password);
+    // Verify password (plain text for demo)
+    const isValidPassword = password === user.password;
 
     if (!isValidPassword) {
       return NextResponse.json(
