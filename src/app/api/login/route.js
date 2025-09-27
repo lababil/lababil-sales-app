@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { DEFAULT_USERS } from '../../../lib/constants';
 
+export async function GET() {
+  return NextResponse.json({ message: 'Login API is working' });
+}
+
 export async function POST(request) {
   try {
     const { username, password } = await request.json();
