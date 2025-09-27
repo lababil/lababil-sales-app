@@ -80,7 +80,7 @@ export const DEFAULT_USERS = [
   {
     id: '1',
     username: 'admin',
-    password: '$2b$10$B/wz5439YIN/7la04sadBecrMgrbOrB3m6FIGZNZ8r726YGa3lG66', // hashed 'F@ruq2021'
+    password: 'F@ruq2021', // plain text for demo
     name: 'Administrator',
     role: USER_ROLES.ADMIN,
     email: 'admin@lababilsolution.com',
@@ -91,7 +91,7 @@ export const DEFAULT_USERS = [
   {
     id: '2',
     username: 'kasir',
-    password: '$2b$10$vmu/JWNpvCCSGzoxZrhuJOLpAupyoTMPjasg8tsEB7aKif4tDekKi', // hashed 'kasir123'
+    password: 'kasir123', // plain text for demo
     name: 'Cashier',
     role: USER_ROLES.KASIR,
     email: 'kasir@lababilsolution.com',
